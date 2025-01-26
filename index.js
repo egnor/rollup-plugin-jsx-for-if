@@ -98,7 +98,6 @@ const nodeHandlers = {
       codeText.overwrite(
         node.closingElement.start, node.closingElement.end, "</>)}</>"
       );
-      console.log(codeText.slice(node.start, node.end));
     }
   },
 
