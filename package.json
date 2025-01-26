@@ -1,0 +1,28 @@
+{
+  "author": "Dan Egnor <egnor@ofb.net>",
+  "bugs": {
+    "url": "https://github.com/egnor/rollup-plugin-jsx-if-for/issues"
+  },
+  "dependencies": {
+    "@rollup/pluginutils": "^5.1.4",
+    "estree-walker": "^3.0.3",
+    "magic-string": "^0.30.17"
+  },
+  "description": "Plugin for Rollup (rollupjs.org) to rewrite JSX <$if> and <$for> pseudocomponents to Javascript if/for expressions, mostly for use in MDX",
+  "homepage": "https://github.com/egnor/rollup-plugin-jsx-if-for#readme",
+  "license": "MIT",
+  "keywords": [
+    "rollup",
+    "plugin",
+    "jsx",
+    "mdx"
+  ],
+  "main": "index.js",
+  "name": "rollup-plugin-jsx-if-for",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/egnor/rollup-plugin-jsx-if-for.git"
+  },
+  "type": "module",
+  "version": "1.0.0"
+}
