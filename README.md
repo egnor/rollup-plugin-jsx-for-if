@@ -1,25 +1,28 @@
 # rollup-plugin-jsx-if-for
-This is a plugin for [the Rollup bundler](https://rollupjs.org) which rewrites
-[JSX content](https://react.dev/learn/writing-markup-with-jsx) (whether or not
-React is used) so `<$if>` and `<$for>` tags are converted into corresponding
-Javascript expressions:
+This is a plugin for [the Rollup bundler](https://rollupjs.org) which
+rewrites [JSX content](https://react.dev/learn/writing-markup-with-jsx)
+(whether or not React is used) so certain "pseudo-component" tags are
+converted to corresponding Javascript expressions:
 
 - `<$if test={expr}>...</$if>` becomes `{(expr) ? <>...</> : null}`
 - `<$for var="id" of={expr}>...</$for>` becomes `{(expr).map((id) => <> ... </>)}`
+- `<$let var="id" be={expr}>...</$let>` becomes `{((id) => <> ... </>)(expr)}`
 
 ## Why?
 
-In most cases you can just write the `{...}` Javascript directly which is
+In most cases you can just write the `{...}` expression directly which is
 more straightforward!
 
-However, if you're using [MDX](https://mdxjs.com/) (Markdown with
-JSX support), you can put Markdown content inside component tags, but not inside
-Javascript curly braces. (See [these](https://github.com/orgs/mdx-js/discussions/2581)
+However, [MDX](https://mdxjs.com/) (Markdown with JSX support),
+only allows Markdown content inside component tags, not inside Javascript
+curly braces. (See
+[these](https://github.com/orgs/mdx-js/discussions/2581)
 [discussions](https://github.com/orgs/mdx-js/discussions/2276).)
 
-So while this plugin doesn't technically involve MDX at all, mostly it exists to
-deal with this MDX quirk and let you write conditions and loops around Markdown content.
-("Traditional" template languages often use tag-based conditionals and loops like these.)
+So, while this plugin doesn't technically involve MDX at all, it exists
+mostly to deal with this MDX quirk and let you write conditions, loops,
+and local variable bindings around Markdown content. ("Traditional" template
+languages often use tag-based conditionals and loops in this way.)
 
 ## Usage
 
@@ -29,6 +32,64 @@ npm i rollup-plugin-jsx-if-for
 ```
 
 Configure Rollup to use it, in `rollup.config.js` or equivalent:
+```
+import rollupJsxIfFor from "rollup-plugin-jsx-if-for";
+...
+export default {
+  ...
+  plugins: [
+    ...
+    rollupJsxIfFor({ ... }),
+  ],
+};
+```
+
+This plugin's constructor takes
+[conventional](https://rollupjs.org/plugin-development/#transformers)
+`include` and `exclude` options to subselect from the files
+Rollup is processing.
+
+```
+rollupJsxIfFor({
+  include = ["**/*.mdx", "**/*.jsx"],
+  exclude = [],
+})
+```
+
+
+> [!NOTE]
+> List this plugin AFTER plugins which convert other formats into JS/JSX (eg.
+> [`rollup-plugin-postcss`](https://github.com/egoist/rollup-plugin-postcss#readme)),
+> or in fact [`@mdx-js/rollup`](https://mdxjs.com/packages/rollup/].
+> Otherwise this plugin will fail trying to parse CSS or raw MDX or something.
+
+## Using this plugin with MDX
+
+If you're using this plugin, you're probably also using
+[`@mdx-js/rollup`](https://mdxjs.com/packages/rollup/).
+
+Configure both
+[MDX](https://mdxjs.com/packages/mdx/#processoroptions)
+and
+[Rollup](https://rollupjs.org/configuration-options/#jsx)
+so JSX-to-JS conversion happens in the Rollup core, not the MDX plugin:
+
+```
+import rollupJsxIfFor from "rollup-plugin-jsx-if-for";
+import rollupMdx from "@mdx-js/rollup";
+...
+export default {
+  ...
+  jsx: { mode: "automatic", jsxImportSource: ... },
+  ...
+  plugins: [
+    ...
+    rollupMdx({ jsx: true }),  // output JSX tags in MDX output
+    rollupJsxIfFor({ ... }),
+    ...
+  ],
+};
+```
 ```
 import rollupJsxIfFor from "rollup-plugin-jsx-if-for";
 import rollupMdx from "@mdx-js/rollup";
@@ -46,32 +107,25 @@ export default {
 };
 ```
 
-This plugin's constructor takes an options object:
-
-```
-rollupJsxIfFor({
-  include = ["**/*.mdx", "**/*.jsx"],
-  exclude = [],
-})
-```
-
-The `include` and `exclude` properties follow
-[conventions for Rollup transforming plugins](https://rollupjs.org/plugin-development/#transformers)
-and are applied on top of the
-[list of input files](https://rollupjs.org/configuration-options/#input)
-Rollup is already processing.
-
-> [!IMPORTANT]
-> If you're using this, you're probably also using [`@mdx-js/rollup`](https://mdxjs.com/packages/rollup/).
-> Make sure to [configure MDX](https://mdxjs.com/packages/mdx/#processoroptions) (as above) to keep JSX
-> tags in its output so this plugin can rewrite them. Also make sure to
-> [configure Rollup](https://rollupjs.org/configuration-options/#jsx) (as above) to convert JSX to JS
-> in the final output.
+> [!CAUTION]
+> In MDX content, `<$if>` and `<$for>` tags will wrap Markdown/JSX,
+> BUT `import` and `export` directives are executed globally first without
+> regard to these tags. So this will NOT work:
+> ```mdx
+> <$for var="i" of={[1, 2, 3]}>
+>   export const j = i * 2;  // WILL FAIL, is evaluated BEFORE and OUTSIDE the loop
+>   ## {i} times 2 is {j}   {/* WILL NOT WORK */}
+> </$for>
+> ```
 >
-> Also make sure to put this plugin AFTER transformers which turn other formats into JS/JSX
-> (eg. [`rollup-plugin-postcss`](https://github.com/egoist/rollup-plugin-postcss#readme)),
-> or configure this plugin to exclude the input files. Otherwise you'll get errors from this
-> plugin trying to parse CSS or something.
+> Instead, use `<$let>`, like this:
+> ```mdx
+> <$for var="i" of={[1, 2, 3]}>
+>   <$let var="j" equals={i * 2}>
+>     ## {i} times 2 is {j}
+>   </$let>
+> </$for>
+> ```
 
 ## Minimal example
 
