@@ -46,8 +46,20 @@ export default {
 };
 ```
 
-This plugin takes an options object with `include` and `exclude` which follow
-[conventions for Rollup transforming plugins](https://rollupjs.org/plugin-development/#transformers).
+This plugin's constructor takes an options object:
+
+```
+rollupJsxIfFor({
+  include = ["**/*.mdx", "**/*.jsx"],
+  exclude = [],
+})
+```
+
+The `include` and `exclude` properties follow
+[conventions for Rollup transforming plugins](https://rollupjs.org/plugin-development/#transformers)
+and are applied on top of the
+[list of input files](https://rollupjs.org/configuration-options/#input)
+Rollup is already processing.
 
 > [!IMPORTANT]
 > If you're using this, you're probably also using [`@mdx-js/rollup`](https://mdxjs.com/packages/rollup/).

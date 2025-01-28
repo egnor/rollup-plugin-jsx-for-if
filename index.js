@@ -2,7 +2,9 @@ import * as estreeWalker from "estree-walker";
 import MagicString from "magic-string";
 import pluginUtils from "@rollup/pluginutils";
 
-export default function rollupJsxForIf({ include, exclude } = {}) {
+export default function rollupJsxForIf({
+  include = ["**/*.mdx", "**/*.jsx"], exclude = []
+} = {}) {
   const filter = pluginUtils.createFilter(include, exclude);
   const firstPass = /\$(if|for)\b/;
 
