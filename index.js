@@ -66,14 +66,14 @@ const nodeHandlers = {
       );
 
       codeText.overwrite(
-        testAttr.value.expression.end, openTag.end, ") ? <>"
+        testAttr.value.expression.end, openTag.end, ")?<>"
       );
 
-      const endText = "<> : null}</>";
+      const endText = "</>:null}</>";
       if (closeTag) {
         codeText.overwrite(closeTag.start, closeTag.end, endText);
       } else {
-        codeText.appendLeft(node.end, endText);
+        codeText.appendLeft(openTag.end, endText);
       }
     }
 
@@ -101,7 +101,13 @@ const nodeHandlers = {
       const ofExpr = ofAttr.value.expression;
       codeText.overwrite(openTag.start, ofExpr.start, "<>{(");
       codeText.overwrite(ofExpr.end, openTag.end, `).map((${varText}) => <>`);
-      codeText.overwrite(closeTag.start, closeTag.end, "</>)}</>");
+
+      const endText = "</>)}</>";
+      if (closeTag) {
+        codeText.overwrite(closeTag.start, closeTag.end, endText);
+      } else {
+        codeText.appendLeft(openTag.end, endText);
+      }
     }
 
     // Rewrite <$let var="id" value={expr}/>...</$let>
@@ -126,9 +132,13 @@ const nodeHandlers = {
       const valueExpr = valueAttr.value.expression;
       const valueText = codeText.slice(valueExpr.start, valueExpr.end);
       codeText.overwrite(openTag.start, openTag.end, `<>{((${varText}) => <>`);
-      codeText.overwrite(
-        closeTag.start, closeTag.end, `</>)((${valueText}))}</>`
-      );
+
+      const endText = `</>)((${valueText}))}</>`;
+      if (closeTag) {
+        codeText.overwrite(closeTag.start, closeTag.end, endText);
+      } else {
+        codeText.appendLeft(openTag.end, endText);
+      }
     }
   },
 
