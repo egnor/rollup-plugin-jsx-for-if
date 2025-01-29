@@ -6,7 +6,7 @@ export default function rollupJsxForIf({
   include = ["**/*.mdx", "**/*.jsx"], exclude = []
 } = {}) {
   const filter = pluginUtils.createFilter(include, exclude);
-  const firstPass = /\$(if|for)\b/;
+  const firstPass = /\$(if|for|let)\b/;
 
   return {
     name: "jsx-for-if",
@@ -33,72 +33,96 @@ export default function rollupJsxForIf({
 
 const nodeHandlers = {
   JSXElement: function(pluginContext, codeText, node) {
-    const tagNode = node.openingElement;
+    const { openingElement: openTag, closingElement: closeTag } = node;
     if (
-      tagNode.name.type !== "JSXIdentifier" ||
-      !tagNode.name.name.startsWith("$")
+      openTag.name.type !== "JSXIdentifier" ||
+      !openTag.name.name.startsWith("$")
     ) {
       return;
     }
 
-    const tagText = codeText.slice(tagNode.start, tagNode.end);
-    const attrNodes = {};
-    for (const a of tagNode.attributes) {
+    const openText = codeText.slice(openTag.start, openTag.end);
+    const attrs = {};
+    for (const a of openTag.attributes) {
       if (a.type === "JSXAttribute") {
-        attrNodes[a.name.name] = a;
+        attrs[a.name.name] = a;
       }
     }
 
     // Rewrite <$if test={expr}>...</$if> to <>{(expr) ? <>...</> : null}</>
-    if (tagNode.name.name === "$if") {
-      pluginContext.debug(`Rewriting ${tagText}`);
+    if (openTag.name.name === "$if") {
+      pluginContext.debug(`Rewriting ${openText}`);
 
-      const { test: testNode, ...extraNodes } = attrNodes;
-      if (testNode?.value?.type !== "JSXExpressionContainer") {
-        throw new Error(`Need test={expression} in ${tagText}`);
+      const { test: testAttr, ...extraNodes } = attrs;
+      if (testAttr?.value?.type !== "JSXExpressionContainer") {
+        throw new Error(`Need test={expression} in ${openText}`);
       }
       if (extraNodes.length > 0) {
-        throw new Error(`Bad attribute in ${tagText}`);
+        throw new Error(`Bad attribute in ${openText}`);
       }
 
       codeText.overwrite(
-        tagNode.start, testNode.value.expression.start, "<>{("
+        openTag.start, testAttr.value.expression.start, "<>{("
       );
 
       codeText.overwrite(
-        testNode.value.expression.end, tagNode.end, ") ? <>"
+        testAttr.value.expression.end, openTag.end, ") ? <>"
       );
 
-      codeText.overwrite(
-        node.closingElement.start, node.closingElement.end, "</> : null}</>"
-      );
+      codeText.overwrite(closeTag.start, closeTag.end, "</> : null}</>");
     }
 
     // Rewrite <$for var="id" of={expr}>...</$for>
     // to <>{(expr).map((id) => <>...</>)}</>
-    if (tagNode.name.name === "$for") {
-      pluginContext.debug(`Rewriting ${tagText}`);
+    if (openTag.name.name === "$for") {
+      pluginContext.debug(`Rewriting ${openText}`);
 
-      const { var: varNode, of: ofNode, ...extraNodes } = attrNodes;
-      if (varNode?.value?.type !== "Literal") {
-        throw new Error(`Need var="name" in ${tagText}`);
+      const { var: varAttr, of: ofAttr, ...extraNodes } = attrs;
+      if (varAttr?.value?.type !== "Literal") {
+        throw new Error(`Need var="name" in ${openText}`);
       }
-      if (ofNode?.value?.type !== "JSXExpressionContainer") {
-        throw new Error(`Need of={expression} in ${tagText}`);
+      if (ofAttr?.value?.type !== "JSXExpressionContainer") {
+        throw new Error(`Need of={expression} in ${openText}`);
       }
       if (extraNodes.length > 0) {
-        throw new Error(`Bad attribute in ${tagText}`);
+        throw new Error(`Bad attribute in ${openText}`);
       }
 
+      const varText = varAttr.value.value;
+      // TODO: validate varText as an identifier OR destructuring pattern
+      // probably by parsing `let ${varText} = null;` and
+      // verifying that we get exactly one valid let-expression?
+
+      const ofExpr = ofAttr.value.expression;
+      codeText.overwrite(openTag.start, ofExpr.start, "<>{(");
+      codeText.overwrite(ofExpr.end, openTag.end, `).map((${varText}) => <>`);
+      codeText.overwrite(closeTag.start, closeTag.end, "</>)}</>");
+    }
+
+    // Rewrite <$let var="id" value={expr}/>...</$let>
+    // to <>{((id) => <>...</>)((expr))}</>
+    if (openTag.name.name === "$let") {
+      pluginContext.debug(`Rewriting ${openText}`);
+
+      const { var: varAttr, value: valueAttr, ...extraNodes } = attrs;
+      if (varAttr?.value?.type !== "Literal") {
+        throw new Error(`Need var="name" in ${openText}`);
+      }
+      if (valueAttr?.value?.type !== "JSXExpressionContainer") {
+        throw new Error(`Need value={expression} in ${openText}`);
+      }
+      if (extraNodes.length > 0) {
+        throw new Error(`Bad attribute in ${openText}`);
+      }
+
+      const varText = varAttr.value.value;
+      // TODO: validate varText as above
+
+      const valueExpr = valueAttr.value.expression;
+      const valueText = codeText.slice(valueExpr.start, valueExpr.end);
+      codeText.overwrite(openTag.start, openTag.end, `<>{((${varText}) => <>`);
       codeText.overwrite(
-        tagNode.start, ofNode.value.expression.start, "<>{("
-      );
-      codeText.overwrite(
-        ofNode.value.expression.end, tagNode.end,
-        `).map((${varNode.value.value}) => <>`
-      );
-      codeText.overwrite(
-        node.closingElement.start, node.closingElement.end, "</>)}</>"
+        closeTag.start, closeTag.end, `</>)((${valueText}))}</>`
       );
     }
   },
@@ -115,7 +139,7 @@ const nodeHandlers = {
 
     // MDX inserts code to check every referenced component name.
     // We've rewritten $if and $for away, but we have to nerf the check also.
-    if (["$if", "$for"].includes(node.arguments[0].value)) {
+    if (["$if", "$for", "$let"].includes(node.arguments[0].value)) {
       pluginContext.debug(`Rewriting ${codeText.slice(node.start, node.end)}`);
       codeText.overwrite(node.start, node.end, "{}");
     }

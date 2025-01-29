@@ -6,7 +6,7 @@ converted to corresponding Javascript expressions:
 
 - `<$if test={expr}>...</$if>` becomes `{(expr) ? <>...</> : null}`
 - `<$for var="id" of={expr}>...</$for>` becomes `{(expr).map((id) => <> ... </>)}`
-- `<$let var="id" be={expr}>...</$let>` becomes `{((id) => <> ... </>)(expr)}`
+- `<$let var="id" value={expr}>...</$let>` becomes `{((id) => <> ... </>)(expr)}`
 
 ## Why?
 
@@ -121,7 +121,7 @@ export default {
 > Instead, use `<$let>`, like this:
 > ```mdx
 > <$for var="i" of={[1, 2, 3]}>
->   <$let var="j" equals={i * 2}>
+>   <$let var="j" value={i * 2}>
 >     ## {i} times 2 is {j}
 >   </$let>
 > </$for>
