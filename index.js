@@ -69,7 +69,12 @@ const nodeHandlers = {
         testAttr.value.expression.end, openTag.end, ") ? <>"
       );
 
-      codeText.overwrite(closeTag.start, closeTag.end, "</> : null}</>");
+      const endText = "<> : null}</>";
+      if (closeTag) {
+        codeText.overwrite(closeTag.start, closeTag.end, endText);
+      } else {
+        codeText.appendLeft(node.end, endText);
+      }
     }
 
     // Rewrite <$for var="id" of={expr}>...</$for>
