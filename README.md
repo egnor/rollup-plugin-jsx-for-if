@@ -97,25 +97,6 @@ export default {
 };
 ```
 
-> [!CAUTION]
-> In MDX content, `<$if>` and `<$for>` tags will wrap Markdown/JSX,
-> BUT ALL `export` directives are executed globally first. This will NOT work:
-> ```mdx
-> <$for var="i" of={[1, 2, 3]}>
->   export const j = i * 2;  // WILL FAIL, is evaluated BEFORE and OUTSIDE the loop
->   ## {i} times 2 is {j}   {/* WILL NOT WORK */}
-> </$for>
-> ```
->
-> Instead, use `<$let>` for local bindings, like this:
-> ```mdx
-> <$for var="i" of={[1, 2, 3]}>
->   <$let var="j" value={i * 2}>
->     ## {i} times 2 is {j}
->   </$let>
-> </$for>
-> ```
-
 ## Minimal example
 
 Use this `rollup.config.mjs`
@@ -174,3 +155,69 @@ like this
 ![image](https://github.com/user-attachments/assets/18db5fb4-bfc6-4eed-883e-530b8c6a65c0)
 
 Tada! 🍺
+
+## Tips and Pitfalls
+
+### ⚠️ Don't use MDX `export` inside tag scopes (use `<$let>` instead)
+
+In MDX content, `<$if>`, `<$for>`, and `<$let>` tags will wrap Markdown/JSX,
+BUT ALL `export` directives are executed globally first. This will NOT work:
+
+```mdx
+<$for var="i" of={[1, 2, 3]}>
+  export const j = i * 2;  // WILL FAIL, is evaluated BEFORE and OUTSIDE the loop
+  ## {i} times 2 is {j}   {/* WILL NOT WORK */}
+</$for>
+```
+
+Instead, use `<$let>` for local bindings, like this:
+```mdx
+<$for var="i" of={[1, 2, 3]}>
+  <$let var="j" value={i * 2}>
+    ## {i} times 2 is {j}
+  </$let>
+</$for>
+```
+
+### ℹ️ Ways to avoid nested `<$let>` towers
+
+If you find yourself with towers of annoyingly nested dependent `<$let>` tags:
+```mdx
+<$let var="x" value={3.14159}>
+  <$let var="y" value={x * x}>
+    <$let var="z" value={y / (x + 1)}>
+      ## x={x} y={y} z={z}
+    </$let>
+  </$let>
+</$let>
+```
+
+Consider instead building an object in an immediately invoked function:
+```mdx
+<$let var="{x, y, z}" value={(() =>
+  const x = 3.14159;
+  const y = x * x;
+  const z = y / (x + 1);
+  return {x, y, z};
+)()}>
+  ## x={x} y={y} z={z}
+</$let>
+```
+
+You could also use a named function with MDX `export` (if the function can run in global scope):
+
+```mdx
+export function getXYZ() {
+  const x = 3.14159;
+  const y = x * x;
+  const z = y / (x + 1);
+  return {x, y, z};
+}
+
+...
+<$let var="{x, y, z}" value={getXYZ()}>
+  ## x={x} y={y} z={z}
+</$let>
+```
+
+You could even `import` the function from another module entirely, if that makes sense for you.
