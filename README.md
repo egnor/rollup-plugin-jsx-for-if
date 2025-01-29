@@ -8,10 +8,17 @@ converted to corresponding Javascript expressions:
 - `<$for var="id" of={expr}>...</$for>` becomes `{(expr).map((id) => <> ... </>)}`
 - `<$let var="id" value={expr}>...</$let>` becomes `{((id) => <> ... </>)(expr)}`
 
+Note that `var` in `<$for>` and `<$let>` may be a variable name or a
+destructuring pattern, and `of` and `value` may be any Javascript expression:
+```
+<$for var="{x, y}" of {[{x: 1, y: 2}, {x: 3, y: 4}]}>
+  <div>x is {x}, y is {y}</div>
+</$for>
+```
+
 ## Why?
 
-In most cases you can just write the `{...}` expression directly which is
-more straightforward!
+In most contexts you can and should write the `{...}` equivalent directly.
 
 However, [MDX](https://mdxjs.com/) (Markdown with JSX support),
 only allows Markdown content inside component tags, not inside Javascript
@@ -19,9 +26,9 @@ curly braces. (See
 [these](https://github.com/orgs/mdx-js/discussions/2581)
 [discussions](https://github.com/orgs/mdx-js/discussions/2276).)
 
-So, while this plugin doesn't technically involve MDX at all, it exists
-mostly to deal with this MDX quirk and let you write conditions, loops,
-and local variable bindings around Markdown content. ("Traditional" template
+So, while this plugin isn't technically MDX-specific, it exists mostly to
+deal with this MDX quirk and let you write conditions, loops, and local
+variable bindings around Markdown content. ("Traditional" template
 languages often use tag-based conditionals and loops in this way.)
 
 ## Usage
@@ -55,7 +62,6 @@ rollupJsxIfFor({
   exclude = [],
 })
 ```
-
 
 > [!NOTE]
 > List this plugin AFTER plugins which convert other formats into JS/JSX (eg.
