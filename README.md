@@ -20,7 +20,7 @@ destructuring pattern, and `of` and `value` may be any Javascript expression:
 
 In most contexts you can and should write the `{...}` equivalent directly.
 
-However, [MDX](https://mdxjs.com/) (Markdown with JSX support),
+However, [MDX](https://mdxjs.com/) (Markdown with JSX support)
 only allows Markdown content inside component tags, not inside Javascript
 curly braces. (See
 [these](https://github.com/orgs/mdx-js/discussions/2581)
@@ -66,7 +66,7 @@ rollupJsxIfFor({
 > [!NOTE]
 > List this plugin AFTER plugins which convert other formats into JS/JSX (eg.
 > [`rollup-plugin-postcss`](https://github.com/egoist/rollup-plugin-postcss#readme)),
-> or in fact [`@mdx-js/rollup`](https://mdxjs.com/packages/rollup/].
+> or in fact [`@mdx-js/rollup`](https://mdxjs.com/packages/rollup/).
 > Otherwise this plugin will fail trying to parse CSS or raw MDX or something.
 
 ## Using this plugin with MDX
@@ -96,27 +96,10 @@ export default {
   ],
 };
 ```
-```
-import rollupJsxIfFor from "rollup-plugin-jsx-if-for";
-import rollupMdx from "@mdx-js/rollup";
-...
-export default {
-  ...
-  jsx: { mode: "automatic", jsxImportSource: ... },
-  ...
-  plugins: [
-    ...
-    rollupMdx({ jsx: true }),  // output JSX tags in MDX output
-    rollupJsxIfFor({ ... }),
-    ...
-  ],
-};
-```
 
 > [!CAUTION]
 > In MDX content, `<$if>` and `<$for>` tags will wrap Markdown/JSX,
-> BUT `import` and `export` directives are executed globally first without
-> regard to these tags. So this will NOT work:
+> BUT ALL `export` directives are executed globally first. This will NOT work:
 > ```mdx
 > <$for var="i" of={[1, 2, 3]}>
 >   export const j = i * 2;  // WILL FAIL, is evaluated BEFORE and OUTSIDE the loop
@@ -124,7 +107,7 @@ export default {
 > </$for>
 > ```
 >
-> Instead, use `<$let>`, like this:
+> Instead, use `<$let>` for local bindings, like this:
 > ```mdx
 > <$for var="i" of={[1, 2, 3]}>
 >   <$let var="j" value={i * 2}>
@@ -161,21 +144,21 @@ export default fg.sync("*.mdx").map((input) => ({
 
 And this `beer.mdx`
 
-```
-export const countdown = [...Array(100).keys()].reverse();
-
-<$for var="n" of={countdown}>
-  <$if test={n > 0}>
-    ## {n} bottles of beer on the wall, {n} bottles of beer
-    Take one down and pass it around,
-    <$if test={n > 1}>{n - 1}</$if> <$if test={n <= 1)>no more</$if>
-    bottles of beer on the wall.
-  </$if>
-  <$if test={n == 0}>
-    ## No more bottles of beer on the wall, no more bottles of beer
-    Go to the store and buy some more, 99 bottles of beer on the wall
-  </$if>
-</$for>
+```mdx
+<$let var="countdown" value={[...Array(100).keys()].reverse()}>
+  <$for var="n" of={countdown}>
+    <$if test={n > 0}>
+      ## {n} bottles of beer on the wall, {n} bottles of beer
+      Take one down and pass it around,
+      <$if test={n > 1}>{n - 1}</$if> <$if test={n <= 1}>no more</$if>
+      bottles of beer on the wall.
+    </$if>
+    <$if test={n == 0}>
+      ## No more bottles of beer on the wall, no more bottles of beer
+      Go to the store and buy some more, 99 bottles of beer on the wall
+    </$if>
+  </$for>
+</$let>
 ```
 
 And then run
