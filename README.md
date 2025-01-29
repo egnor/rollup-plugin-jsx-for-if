@@ -10,7 +10,7 @@ converted to corresponding Javascript expressions:
 
 Note that `var` in `<$for>` and `<$let>` may be a variable name or a
 destructuring pattern, and `of` and `value` may be any Javascript expression:
-```
+```jsx
 <$for var="{x, y}" of {[{x: 1, y: 2}, {x: 3, y: 4}]}>
   <div>x is {x}, y is {y}</div>
 </$for>
@@ -34,12 +34,12 @@ languages often use tag-based conditionals and loops in this way.)
 ## Usage
 
 Add this module:
-```
+```sh
 npm i rollup-plugin-jsx-if-for
 ```
 
 Configure Rollup to use it, in `rollup.config.js` or equivalent:
-```
+```js
 import rollupJsxIfFor from "rollup-plugin-jsx-if-for";
 ...
 export default {
@@ -56,7 +56,7 @@ This plugin's constructor takes
 `include` and `exclude` options to subselect from the files
 Rollup is processing.
 
-```
+```js
 rollupJsxIfFor({
   include = ["**/*.mdx", "**/*.jsx"],
   exclude = [],
@@ -80,7 +80,7 @@ and
 [Rollup](https://rollupjs.org/configuration-options/#jsx)
 so JSX-to-JS conversion happens in the Rollup core, not the MDX plugin:
 
-```
+```js
 import rollupJsxIfFor from "rollup-plugin-jsx-if-for";
 import rollupMdx from "@mdx-js/rollup";
 ...
@@ -120,7 +120,7 @@ export default {
 
 Use this `rollup.config.mjs`
 
-```
+```js
 import fg from "fast-glob";
 import rollupAutomountDom from "rollup-plugin-automount-dom";
 import rollupHtml from "@rollup/plugin-html";
@@ -163,12 +163,13 @@ And this `beer.mdx`
 
 And then run
 
-```
+```sh
 npm i fast-glob jsx-dom @mdx-js/rollup rollup rollup-plugin-automount-dom @rollup/plugin-html rollup-plugin-jsx-if-for @rollup/plugin-node-resolve
 npx rollup -c
 ```
 
-And finally load `dist/beer.html` in your browser and you should see something like this
+And finally load `dist/beer.html` in your browser and you should see something
+like this
 
 ![image](https://github.com/user-attachments/assets/18db5fb4-bfc6-4eed-883e-530b8c6a65c0)
 
