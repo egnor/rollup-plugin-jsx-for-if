@@ -70,12 +70,12 @@ function wrapCodeForParent(text, node, parent) {
 }
 
 function wrapChildrenForCode(text, node) {
-  if (!node.children.length) {
+  if (!node.closingElement) {
     text.appendLeft(node.openingElement.end, "<></>");
-  } else if (
-    node.children.length > 1 ||
-    !["JSXElement", "JSXFragment"].includes(node.children[0].type)
-  ) {
+  } else {
+    // TODO - figure out how to skip JSX fragment insertion sometimes
+    //  - when it's a single element node we didn't mess with
+    //  - when it's code we generated, and we can avoid the {} wrapper
     text.prependRight(node.openingElement.end, "<>");
     text.appendLeft(node.closingElement.start, "</>");
   }
@@ -115,85 +115,55 @@ const elementNameHandlers = {
   },
 
   // Rewrite <$if test={expr}>...</$if> to <>{(expr) ? <>...</> : null}</>
+  // (The $else handler also passes here.)
   $if: function(plugin, text, node, parent, prop, index) {
     const { openingElement: open, closingElement: close } = node;
     const openText = text.slice(open.start, open.end);
     plugin.debug(`Rewriting ${openText}`);
+
     const { test: testAttr, ...extraAttrs } = Object.fromEntries(
       open.attributes.map(a => [a.name.name, a])
     );
-    if (testAttr?.value?.type !== "JSXExpressionContainer") {
-      throw new Error(`Need test={expression} in ${openText}`);
+    if (open.name.name === "$if" && !testAttr) {
+      throw new Error(`Missing test={expression} in ${openText}`);
+    }
+    if (testAttr && testAttr.value?.type !== "JSXExpressionContainer") {
+      throw new Error(`Bad test={expression} in ${openText}`);
     }
     if (extraAttrs.length > 0) {
       throw new Error(`Bad attribute in ${openText}`);
     }
 
-    text.overwrite(open.start, testAttr.value.expression.start, "(");
-    text.overwrite(testAttr.value.expression.end, open.end, ") ? ");
+    if (testAttr) {
+      text.overwrite(open.start, testAttr.value.expression.start, "(");
+      text.overwrite(testAttr.value.expression.end, open.end, ") ? ");
+    } else {
+      text.remove(open.start, open.end);
+    }
+
     wrapChildrenForCode(text, node);
     if (close) text.remove(close.start, close.end);
+    if (testAttr) text.appendLeft(node.end, " : ");
 
-    const nextNode = (prop === "children") && parent?.children[index + 1];
-    if (["$else-if", "$else"].includes(nextNode?.openingElement?.name?.name)) {
-      text.appendLeft(node.end, " : ");
+    const children = (prop === "children") && parent?.children;
+    const nextNode = children?.[index + 1];
+    if (nextNode?.openingElement?.name?.name === "$else") {
+      // Leave code open for the rest of the if-else-...-else chain
     } else {
-      text.appendLeft(node.end, " : null");
-      wrapCodeForParent(text, node, parent);
+      // Last clause in the chain, find the starting if and wrap it up
+      var pi = index;
+      while (children?.[pi]?.openingElement?.name?.name === "$else") --pi;
+      const prevNode = children?.[pi];
+      if (prevNode?.openingElement?.name?.name !== "$if") {
+        throw new Error(`No previous <$if> for ${openText}`);
+      }
+      if (testAttr) text.appendLeft(node.end, "null");
+      wrapCodeForParent(text, { start: prevNode.start, end: node.end }, parent);
     }
   },
 
-  "$else-if": function(plugin, text, node, parent, prop, index) {
-    const { openingElement: open, closingElement: close } = node;
-    const openText = text.slice(open.start, open.end);
-    plugin.debug(`Rewriting ${openText}`);
-    const { test: testAttr, ...extraAttrs } = Object.fromEntries(
-      open.attributes.map(a => [a.name.name, a])
-    );
-    if (testAttr?.value?.type !== "JSXExpressionContainer") {
-      throw new Error(`Need test={expression} in ${openText}`);
-    }
-    if (extraAttrs.length > 0) {
-      throw new Error(`Bad attribute in ${openText}`);
-    }
-
-    text.overwrite(open.start, testAttr.value.expression.start, "(");
-    text.overwrite(testAttr.value.expression.end, open.end, ") ? ");
-    wrapChildrenForCode(text, node);
-    if (close) text.remove(close.start, close.end);
-
-    const nextNode = (prop === "children") && parent?.children[index + 1];
-    if (["$else-if", "$else"].includes(nextNode?.openingElement?.name?.name)) {
-      text.appendLeft(node.end, " : ");
-    } else {
-      text.appendLeft(node.end, " : null");
-      wrapCodeForParent(text, node, parent);
-    }
-  },
-
-  $else: function(plugin, text, node, parent, prop, index) {
-    const { openingElement: open, closingElement: close } = node;
-    const openText = text.slice(open.start, open.end);
-    plugin.debug(`Rewriting ${openText}`);
-    if (open.attributes.length > 0) {
-      throw new Error(`Bad attribute in ${openText}`);
-    }
-
-    text.remove(open.start, open.end);
-    wrapChildrenForCode(text, node);
-    if (close) text.remove(close.start, close.end);
-
-    var pi = (parent && prop === "children") ? index - 1 : null;
-    while (parent.children[pi]?.openingElement?.name?.name === "$else-if") {
-      --pi;
-    }
-
-    const prevNode = parent.children[pi];
-    if (prevNode?.openingElement?.name?.name !== "$if") {
-      throw new Error(`Found <$else> without previous <$if>`);
-    }
-
-    wrapCodeForParent(text, { begin: prevNode.begin, end: node.end }, parent);
+  "$else": function(plugin, text, node, parent, prop, index) {
+    elementNameHandlers.$if(plugin, text, node, parent, prop, index);
   },
 
   // Rewrite <$let var="id" value={expr}/>...</$let>
